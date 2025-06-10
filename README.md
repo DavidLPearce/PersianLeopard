@@ -1,2 +1,2 @@
 # PersianLeopard
-Persian leopard occupancy and abundance in southern Iran
+Persian leopard space use in south eastern Iran
