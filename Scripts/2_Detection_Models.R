@@ -27,7 +27,7 @@ setwd(".")
 leo_dat <- read.csv("./Data/LeopardOccu.csv")
 
 # Camera locations
-cam_loc <- vect("D:/Persian_Leopard_GIS/CameraLocationsNew/CameraLocationsNew.shp")
+cam_loc <- vect("E:/Persian_Leopard_GIS/CameraLocationsNew/CameraLocationsNew.shp")
 
 # Initial detection covariates
 det_covs <- read.csv("./Data/Det_Covs_Nima.csv")
@@ -118,36 +118,36 @@ p_null120_rhat_vals <- unlist(p_null120_rhat)
 which(p_null120_rhat_vals > 1.1)
 
 # Fit null detection model for 88 days
-p_null88 <- PGOcc(occ.formula = ~ 1, 
-                   det.formula = ~1, 
-                   data = spOccu_dat88, 
-                   inits = inits88, 
-                   n.samples = n.samples, 
-                   priors = priors, 
-                   n.omp.threads = 1, 
-                   verbose = TRUE, 
-                   n.report = n.report, 
-                   n.burn = n.burn,
-                   n.thin = n.thin, 
-                   n.chains = n.chains)
-
-
-# Check for convergence
-p_null88_rhat<- p_null88$rhat
-p_null88_rhat_vals <- unlist(p_null88_rhat)
-which(p_null88_rhat_vals > 1.1)
+# p_null88 <- PGOcc(occ.formula = ~ 1, 
+#                    det.formula = ~1, 
+#                    data = spOccu_dat88, 
+#                    inits = inits88, 
+#                    n.samples = n.samples, 
+#                    priors = priors, 
+#                    n.omp.threads = 1, 
+#                    verbose = TRUE, 
+#                    n.report = n.report, 
+#                    n.burn = n.burn,
+#                    n.thin = n.thin, 
+#                    n.chains = n.chains)
+# 
+# 
+# # Check for convergence
+# p_null88_rhat<- p_null88$rhat
+# p_null88_rhat_vals <- unlist(p_null88_rhat)
+# which(p_null88_rhat_vals > 1.1)
 
 # Extract posterior samples
 det_post120 <- p_null120$alpha.samples 
-det_post88 <- p_null88$alpha.samples 
+# det_post88 <- p_null88$alpha.samples 
 
 # Transform from logit to probability scale
 det_prob120 <- plogis(det_post120[, 1]) 
-det_prob88 <- plogis(det_post88[, 1]) 
+# det_prob88 <- plogis(det_post88[, 1]) 
 
 # Number of survey days
 n_days120 <- ncol(y120)
-n_days88 <- ncol(y88)
+# n_days88 <- ncol(y88)
 
 # Create df
 plot_data120 <- data.frame(
@@ -158,46 +158,67 @@ plot_data120 <- data.frame(
   Group = "120 days"
 )
 
-plot_data88 <- data.frame(
-  Day = 1:n_days88,
-  Mean = sapply(1:n_days88, function(d) mean(1 - (1 - det_prob88)^d)),
-  Lower = sapply(1:n_days88, function(d) quantile(1 - (1 - det_prob88)^d, 0.025)),
-  Upper = sapply(1:n_days88, function(d) quantile(1 - (1 - det_prob88)^d, 0.975)),
-  Group = "88 days"
-)
+# plot_data88 <- data.frame(
+#   Day = 1:n_days88,
+#   Mean = sapply(1:n_days88, function(d) mean(1 - (1 - det_prob88)^d)),
+#   Lower = sapply(1:n_days88, function(d) quantile(1 - (1 - det_prob88)^d, 0.025)),
+#   Upper = sapply(1:n_days88, function(d) quantile(1 - (1 - det_prob88)^d, 0.975)),
+#   Group = "88 days"
+# )
+
+# # Plot
+# det_prob_plot120 <- ggplot(plot_data, aes(x = Day, y = Mean, color = Group, fill = Group)) +
+#   geom_line() +
+#   geom_ribbon(aes(ymin = Lower, ymax = Upper), alpha = 0.2, color = NA) +
+#   geom_vline(xintercept = 12, linetype = "dashed", color = "black") +
+#   scale_color_manual(values = c("120 days" = "black", "88 days" = "red")) +
+#   scale_fill_manual(values = c("120 days" = "grey", "88 days" = "red")) +
+#   scale_x_continuous(breaks = seq(0, max(plot_data$Day), by = 20)) +
+#   labs(
+#     y = "Cumulative Detection Probability",
+#     x = "Survey Day",
+#     title = "Cumulative Detection Probability by Duration"
+#   ) +
+#   theme_minimal(base_size = 14) +
+#   theme(
+#     panel.background = element_rect(fill = "white", color = NA),
+#     plot.background = element_rect(fill = "white", color = NA),
+#     panel.grid.major = element_blank(),
+#     panel.grid.minor = element_blank(),
+#     axis.title.x = element_text(margin = margin(t = 10)),
+#     axis.title.y = element_text(margin = margin(r = 10))
 
 # Combine data
-plot_data <- rbind(plot_data120, plot_data88)
+# plot_data <- rbind(plot_data120, plot_data88)
 
 
 # Plot
-det_prob_plot <- ggplot(plot_data, aes(x = Day, y = Mean, color = Group, fill = Group)) +
-                    geom_line() +
-                    geom_ribbon(aes(ymin = Lower, ymax = Upper), alpha = 0.2, color = NA) +
-                    # geom_vline(xintercept = 10, linetype = "dashed", color = "black") +
-                    scale_color_manual(values = c("120 days" = "blue", "88 days" = "red")) +
-                    scale_fill_manual(values = c("120 days" = "blue", "88 days" = "red")) +
-                    scale_x_continuous(breaks = seq(0, max(plot_data$Day), by = 20)) +
-                    labs(
-                      y = "Cumulative Detection Probability",
-                      x = "Survey Day",
-                      title = "Cumulative Detection Probability by Duration"
-                    ) +
-                    theme_minimal(base_size = 14) +
-                    theme(
-                      panel.background = element_rect(fill = "white", color = NA),
-                      plot.background = element_rect(fill = "white", color = NA),
-                      panel.grid.major = element_blank(),
-                      panel.grid.minor = element_blank(),
-                      axis.title.x = element_text(margin = margin(t = 10)),
-                      axis.title.y = element_text(margin = margin(r = 10))
-)
+det_prob_plot120 <- ggplot(plot_data120, aes(x = Day, y = Mean)) +
+                      geom_ribbon(aes(ymin = Lower, ymax = Upper), fill = "grey80", alpha = 0.5) +
+                      geom_smooth(color = "black", method = "loess", se = FALSE, span = 0.4) +
+                      geom_vline(xintercept = 12, linetype = "dashed", color = "black") +
+                      scale_x_continuous(breaks = seq(0, max(plot_data120$Day), by = 20)) +
+                      labs(
+                        y = "Cumulative Detection Probability",
+                        x = "Survey Day",
+                        title = "A)"
+                      ) +
+                      theme_minimal(base_size = 12) +
+                      theme(
+                        panel.background = element_rect(fill = "white", color = NA),
+                        plot.background = element_rect(fill = "white", color = NA),
+                        panel.grid.major = element_blank(),
+                        panel.grid.minor = element_blank(),
+                        axis.title.x = element_text(margin = margin(t = 10)),
+                        axis.title.y = element_text(margin = margin(r = 10))
+                      )
+
 
 # Print
-print(det_prob_plot)
+print(det_prob_plot120)
 
 # little to no difference in detection
-# 120 days retains more information since there is only 120 sites
+# 120 days retains more information since there is only 18 sites
 
 # Round detection probs
 plot_data120$Mean <- round(plot_data120$Mean, 2)
@@ -209,7 +230,8 @@ print(plot_data120)
 # at 12 days det prob is 0.51 and would result in fewer NAs than 10 day occasion lengths
 
 # Save
-ggsave("./Outputs/Cumulative_Detection_Prob_Plot.png", plot = det_prob_plot, width = 8, height = 6, dpi = 300)
+ggsave("./Outputs/Cumulative_Detection_Prob_Plot_120days.png", 
+       plot = det_prob_plot120, width = 8, height = 6, dpi = 300)
 write.csv(plot_data120, "./Outputs/Cumulative_Detection_Prob_120days.csv")
 
 
@@ -268,7 +290,7 @@ print(Days_Active)
 saveRDS(Days_Active, "./Data/Days_Active.rds")
 
 # Survey period
-Survey_Period <- as.data.frame(sapply(1:n_periods, function(x) rep(x, n_sites)))
+Occasion <- as.data.frame(sapply(1:n_periods, function(x) rep(x, n_sites)))
 
 
 # -------------------------------------------------------
@@ -280,7 +302,7 @@ Survey_Period <- as.data.frame(sapply(1:n_periods, function(x) rep(x, n_sites)))
 # Creating a spOccupancy data
 spOccu_dat <- list(y = y_occ,
                    det.covs = list(Days_Active = Days_Active,
-                                   Survey_Period = Survey_Period,
+                                   Occasion = Occasion,
                                    Camera_Type = det_covs$camera.type,
                                    Picture_Background = det_covs$picture.background
                    ),
@@ -316,7 +338,7 @@ priors <- list(beta.normal = list(mean = 0, var = 2.72),
 # ---------------
 
 # List of variable names
-vars <- c("scale(Days_Active)", "(1|Survey_Period)", "as.factor(Camera_Type)", "as.factor(Picture_Background)")
+vars <- c("scale(Days_Active)", "(1|Occasion)", "as.factor(Camera_Type)", "as.factor(Picture_Background)")
 
 # Generate all additive combinations
 formulas <- lapply(1:length(vars), function(k) {
@@ -351,12 +373,20 @@ waic_df <- data.frame(
 # Rhat storage
 rhat_list <- list()
 
+# Progress bar
+pb <- progress_bar$new(
+  format = "Model :current of :total | [:bar] :percent | Elapsed: :elapsed | ETA: :eta",
+  total = length(formulas),
+  clear = FALSE,
+  width = 100
+)
+
 # Fit a model for each formula
 for (i in seq_along(formulas)) {
-  f <- formulas[[i]]
-  message(sprintf("Fitting model %d of %d: formula = %s",
-                  i, length(formulas), f))
   
+  # Get formula
+  f <- formulas[[i]]
+
   # Convert string to formula
   det_formula <- as.formula(f)
   
@@ -391,6 +421,9 @@ for (i in seq_along(formulas)) {
   
   # Save Rhat
   rhat_list[[f]] <- fit$rhat
+  
+  # Update progress bar
+  pb$tick(tokens = list(current = i))
   
 }
 
@@ -431,26 +464,37 @@ plot_data_bm <- data.frame(
 )
 
 # Plot
-ggplot(plot_data_bm, aes(x = Day, y = Mean)) +
-      geom_line(color = "blue") +
-      geom_ribbon(aes(ymin = Lower, ymax = Upper), fill = "blue", alpha = 0.2) +
-      scale_x_continuous(breaks = seq(0, max(plot_data_bm$Day), by = 1)) +
-      labs(
-        y = "Cumulative Detection Probability",
-        x = "Occasion",
-        title = "Cumulative Detection Probability"
-      ) +
-      theme_minimal(base_size = 14) +
-      theme(
-        panel.background = element_rect(fill = "white", color = NA),
-        plot.background = element_rect(fill = "white", color = NA),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        axis.title.x = element_text(margin = margin(t = 10)),
-        axis.title.y = element_text(margin = margin(r = 10))
-      )
+det_prob_plot10occ <- ggplot(plot_data_bm, aes(x = Day, y = Mean)) +
+                      geom_ribbon(aes(ymin = Lower, ymax = Upper), fill = "grey80", alpha = 0.5) +
+                      geom_smooth(color = "black", method = "loess", se = FALSE, span = 0.6) +
+                      scale_x_continuous(breaks = seq(0, max(plot_data_bm$Day), by = 1)) +
+                      labs(
+                        y = "",
+                        x = "Occasion",
+                        title = "B)"
+                      ) +
+                      theme_minimal(base_size = 12) +
+                      theme(
+                        panel.background = element_rect(fill = "white", color = NA),
+                        plot.background = element_rect(fill = "white", color = NA),
+                        panel.grid.major = element_blank(),
+                        panel.grid.minor = element_blank(),
+                        axis.title.x = element_text(margin = margin(t = 10)),
+                        axis.title.y = element_text(margin = margin(r = 10))
+                      )
 
-print(plot_data_bm)
+print(det_prob_plot10occ)
+
+
+# Multipanel figure
+grid.arrange(det_prob_plot120, det_prob_plot10occ, ncol = 2)
+
+
+# Save
+jpeg("./Outputs/Cumulative_Detection_Prob_Plot.jpg", width = 10, height = 4, units = "in", res = 300)
+grid.arrange(det_prob_plot120, det_prob_plot10occ, ncol = 2)
+dev.off()
+
 
 
 # ------------------- End of Script -------------------
