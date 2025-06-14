@@ -12,7 +12,7 @@ library(raster)
 library(spatialEco)
 library(landscapemetrics)
 library(progress)
-
+packageVersion("landscapemetrics")
 set.seed(123)
 options(scipen = 9999)
 setwd(".")

@@ -322,6 +322,12 @@ n.burn <- 50000
 n.thin <- 10
 n.chains <- 3
 
+total_iterations <- batch.length * n.batch
+retained_per_chain <- (total_iterations - n.burn) / n.thin
+posterior_samples <- retained_per_chain * n.chains
+posterior_samples
+
+
 # Initial values
 inits <- list(beta = 0, 
               alpha = 0,

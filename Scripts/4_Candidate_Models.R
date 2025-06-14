@@ -210,6 +210,19 @@ ggsave("./Outputs/Correlation_Heatmap.jpg",
 dev.off()  
 
 
+# Diagional matrix with strength of correlation
+corrplot(cov_corr_mat, 
+         type = "lower", 
+         diag = FALSE, 
+         mar = c(1,0.5,5,1), 
+         tl.col = 'black',
+         tl.pos = 'ld', 
+         tl.srt = 45, 
+         xpd = TRUE, 
+         main = "Pearson's correlations")
+
+
+
 # ---------------------------
 # Formulas
 # ---------------------------

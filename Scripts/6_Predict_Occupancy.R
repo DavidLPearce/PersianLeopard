@@ -9,6 +9,7 @@ library(tidyverse)
 library(gridExtra)
 library(spOccupancy)
 library(progress)
+library(terra)
 library(coda)
 library(stars)
 
@@ -29,7 +30,7 @@ model_fit <- readRDS("./Outputs/Best_Candidate_Model.rds")
 
 # Prediction covs
 pred_cov_df <- readRDS("Data/OccuCovData/pred_cov_df.rds")
-
+nrow(pred_cov_df)
 
 
 # ------------------------------------------------------------------------------
@@ -53,9 +54,9 @@ alpha_df <- as.data.frame(model_fit$alpha.samples)
 # Rename columns
 colnames(alpha_df) <- c("Detection Intercept", "Days Active") # Detection
 
-colnames(beta_df) <- c("Occupancy Intercept",                 # Occupancy
-                       "Sine Transformed Aspect", 
-                       "Cosine Transformed Aspect", 
+colnames(beta_df) <- c("Spatial Use Intercept",                 # Occupancy
+                       "Aspect Sine", 
+                       "Aspect Cosine", 
                        "VRML Cohesion Index")
 
 # Reshape 
@@ -65,7 +66,7 @@ alpha_long <- alpha_df %>%
 
 beta_long <- beta_df %>%
   pivot_longer(cols = everything(), names_to = "Parameter", values_to = "Value") %>%
-  mutate(Type = "Occupancy")
+  mutate(Type = "Spatial Use")
 
 # Combine and set factor levels 
 param_data <- bind_rows(alpha_long, 
@@ -73,11 +74,11 @@ param_data <- bind_rows(alpha_long,
   mutate(
     Parameter = factor(Parameter, levels = rev(c(
       "Detection Intercept", "Days Active", 
-      "Occupancy Intercept", "Sine Transformed Aspect", 
-      "Cosine Transformed Aspect", "VRML Cohesion Index"
+      "Spatial Use Intercept", "Aspect Sine", 
+      "Aspect Cosine", "VRML Cohesion Index"
     ))),
     Type = factor(Type, levels = c("Detection", 
-                                   "Occupancy"))
+                                   "Spatial Use"))
   )
 
 # Filter to 95% central interval for each parameter
@@ -89,31 +90,32 @@ param_data <- param_data %>%
 
 # Define fill colors
 fill_colors <- c("Detection" = "red", 
-                 "Occupancy" = "blue")
+                 "Spatial Use" = "blue")
 
 # Coefficient Plot
 coef_plot <- ggplot(param_data, aes(x = Value, y = Parameter, fill = Type)) +
-  geom_violin(scale = "width", trim = TRUE, alpha = 0.5) +
-  geom_boxplot(width = 0.1, fill = "white", outlier.shape = "black", alpha = 0.7) +  # Boxplot layer
-  geom_vline(xintercept = 0, linetype = "dashed", color = "black") +
-  scale_x_continuous(
-    limits = c(-5, 5), 
-    breaks = seq(-5, 5, 1), 
-    expand = expansion(mult = c(0.05, 0.05))
-  ) +
-  scale_y_discrete(
-    expand = expansion(mult = c(0.15, 0.15))
-  ) +
-  scale_fill_manual(values = fill_colors, guide = "none") +
-  labs(x = "Estimate", y = "Coefficient") +
-  theme_minimal(base_size = 14) +
-  theme(
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-    panel.background = element_rect(fill = "white", color = NA),
-    plot.background = element_rect(fill = "white", color = NA),
-    axis.line = element_line(color = "black")
-  )
+                geom_violin(scale = "width", trim = TRUE, alpha = 0.5) +
+                geom_boxplot(width = 0.1, fill = "white", outlier.shape = "black", alpha = 0.7) +  # Boxplot layer
+                geom_vline(xintercept = 0, linetype = "dashed", color = "black") +
+                scale_x_continuous(
+                  limits = c(-5, 5), 
+                  breaks = seq(-5, 5, 1), 
+                  expand = expansion(mult = c(0.05, 0.05))
+                ) +
+                scale_y_discrete(
+                  expand = expansion(mult = c(0.15, 0.15))
+                ) +
+                scale_fill_manual(values = fill_colors, guide = "none") +
+                labs(x = "Estimate", 
+                     y = "Parameter") +
+                theme_minimal(base_size = 14) +
+                theme(
+                  panel.grid.major = element_blank(),
+                  panel.grid.minor = element_blank(),
+                  panel.background = element_rect(fill = "white", color = NA),
+                  plot.background = element_rect(fill = "white", color = NA),
+                  axis.line = element_line(color = "black")
+                )
 
 # View
 print(coef_plot)
@@ -194,6 +196,38 @@ grid.arrange(sp_plot1, sp_plot2, ncol = 1)
 jpeg("./Outputs/Spatial_Param_Plot.jpg", width = 6, height = 8, units = "in", res = 300)
 grid.arrange(sp_plot1, sp_plot2, ncol = 1)
 dev.off()
+
+
+# ---------------------------
+# Parameter/Coefficient Table
+# ---------------------------
+
+# Combine coefficient and spatial parameter estimates
+
+# Add type label to theta_long to match others
+theta_summary <- theta_long %>%
+  mutate(Type = "Spatial")
+
+# Combine all parameters
+all_params <- bind_rows(param_data, theta_summary)
+
+# Summarize
+summary_table <- all_params %>%
+  group_by(Type, Parameter) %>%
+  summarise(
+    Mean = mean(Value),
+    Median = median(Value),
+    LCI = quantile(Value, 0.025),
+    UCI = quantile(Value, 0.975),
+    .groups = "drop"
+  ) %>%
+  arrange(factor(Type, levels = c("Occupancy", "Detection", "Spatial")))
+
+print(summary_table)
+
+# Export
+write.csv(summary_table , "Outputs/Parameter_Estimate_Table.csv")
+
  
 # ---------------------------
 # Predicted Covariate Effects
@@ -203,9 +237,9 @@ dev.off()
 pred_cov_df[,4:6] <- scale(pred_cov_df[,4:6] ,center = TRUE, scale = TRUE)
 
 # Extract occupancy beta estimates
-beta0_samples <- beta_df[,"Occupancy Intercept"]       # Intercept
-beta1_samples <- beta_df[,"Sine Transformed Aspect"]   # aspect_SINE_buffer4000 
-beta2_samples <- beta_df[,"Cosine Transformed Aspect"] # aspect_COS_buffer5000
+beta0_samples <- beta_df[,"Spatial Use Intercept"]       # Intercept
+beta1_samples <- beta_df[,"Aspect Sine"]   # aspect_SINE_buffer4000 
+beta2_samples <- beta_df[,"Aspect Cosine"] # aspect_COS_buffer5000
 beta3_samples <- beta_df[,"VRML Cohesion Index"]       # VRML_COH_buffer750
 
 # Create a prediction of aspect_SINE_buffer4000 values
@@ -214,12 +248,12 @@ cov2_pred_vals <- seq(min(pred_cov_df[, "aspect_COS_buffer5000"]), max(pred_cov_
 cov3_pred_vals <- seq(min(pred_cov_df[, "VRML_COH_buffer750"]), max(pred_cov_df[, "VRML_COH_buffer750"]), length.out = 1000)
 
 # Matrices for storing predictions
-cov1_preds <- matrix(NA, nrow = length(beta0_vec), ncol = length(cov1_pred_vals))
-cov2_preds <- matrix(NA, nrow = length(beta0_vec), ncol = length(cov2_pred_vals))
-cov3_preds <- matrix(NA, nrow = length(beta0_vec), ncol = length(cov3_pred_vals))
+cov1_preds <- matrix(NA, nrow = length(beta0_samples), ncol = length(cov1_pred_vals))
+cov2_preds <- matrix(NA, nrow = length(beta0_samples), ncol = length(cov2_pred_vals))
+cov3_preds <- matrix(NA, nrow = length(beta0_samples), ncol = length(cov3_pred_vals))
 
 # Generate predictions
-for (i in 1:length(beta0_vec)) {
+for (i in 1:length(beta0_samples)) {
   cov1_preds[i, ] <- beta0_samples[i] + beta1_samples[i] * cov1_pred_vals  
   cov2_preds[i, ] <- beta0_samples[i] + beta2_samples[i] * cov2_pred_vals
   cov3_preds[i, ] <- beta0_samples[i] + beta3_samples[i] * cov3_pred_vals
@@ -259,14 +293,15 @@ cov3_pred_df <- data.frame(
   cov3_preds_LCI = cov3_preds_LCI,
   cov3_preds_HCI = cov3_preds_HCI)
 
-# Sine Transformed Aspect
+# Aspect Sine 
 cov1_pred_plot <- ggplot(cov1_pred_df, aes(x = cov1_scaled, y = cov1_preds_mean)) +
                     geom_ribbon(aes(ymin = cov1_preds_LCI, ymax = cov1_preds_HCI), 
                                 fill = "gray70", alpha = 0.4) +
                     geom_line(color = "black", linewidth = 1.2) +
                     scale_x_continuous(limits = c(-2, 3), breaks = seq(-2, 3, 1)) +
+                    scale_y_continuous(limits = c(-12, 12), breaks = seq(-12, 12, 4)) +
                     labs(
-                      x = "Sine Transformed Aspect (scaled)", 
+                      x = "", 
                       y = "Predicted Effect", 
                       title = "A)"
                     ) +
@@ -280,14 +315,15 @@ cov1_pred_plot <- ggplot(cov1_pred_df, aes(x = cov1_scaled, y = cov1_preds_mean)
                     )
 print(cov1_pred_plot)
 
-# Cosine Transformed Aspect
+# Aspect Cosine 
 cov2_pred_plot <- ggplot(cov2_pred_df, aes(x = cov2_scaled, y = cov2_preds_mean)) +
   geom_ribbon(aes(ymin = cov2_preds_LCI, ymax = cov2_preds_HCI), 
               fill = "gray70", alpha = 0.4) +
   geom_line(color = "black", linewidth = 1.2) +
   scale_x_continuous(limits = c(-3.5, 3), breaks = seq(-3, 3, 1)) +
+  scale_y_continuous(limits = c(-10, 14), breaks = seq(-10, 14, 4)) +
   labs(
-    x = "Cosine Transformed Aspect (scaled)", 
+    x = "", 
     y = "Predicted Effect", 
     title = "B)"
   ) +
@@ -307,8 +343,9 @@ cov3_pred_plot <- ggplot(cov3_pred_df, aes(x = cov3_scaled, y = cov3_preds_mean)
               fill = "gray70", alpha = 0.4) +
   geom_line(color = "black", linewidth = 1.2) +
   scale_x_continuous(limits = c(-2.5, 3.5), breaks = seq(-3, 3, 1)) +
+  scale_y_continuous(limits = c(-10, 15), breaks = seq(-10, 15, 4)) +
   labs(
-    x = "VRML Cohesion Index (scaled)", 
+    x = "Covariate (scaled)", 
     y = "Predicted Effect", 
     title = "C)"
   ) +
@@ -368,6 +405,14 @@ dev.off()
 
 # Read in dat.stars that was ran on TAMU HPRC
 dat.stars <- readRDS("Data/dat.stars_500x500_study_area.rds")
+
+
+# # Convert and export as a raster
+# occu_rast <- rast(dat.stars)   # As raster
+# crs(occu_rast) <- "EPSG:32640" # Correct CRS to UTM zone 40N
+# writeRaster(occu_rast,         # Export
+#             "E:/Persian_Leopard_GIS/LeopardOccupancyRaster/occu_rast.tif",
+#             filetype = "GTiff", overwrite = TRUE)
 
 
 # Mean Occupancy
@@ -435,7 +480,7 @@ grid.arrange(MNoccu_plot, SDoccu_plot, ncol = 2)
 dev.off()
 
 
-# Contoured Prediction Maps
+# Contoured Prediction Maps ----------------
 
 MNoccu_contour_plot <- ggplot() +
   geom_contour_filled(
@@ -445,7 +490,7 @@ MNoccu_contour_plot <- ggplot() +
   ) +
   scale_fill_viridis_d(
     name = "Mean",
-    labels = function(x) gsub("\\(|\\[|\\]", "", x)   
+    labels = function(x) gsub(" ", "", gsub(",", "–", gsub("\\(|\\[|\\]", "", x)))
   ) +
   coord_equal() +
   guides(fill = guide_legend(reverse = TRUE)) +   
@@ -476,7 +521,7 @@ SDoccu_contour_plot <- ggplot() +
   ) +
   scale_fill_viridis_d(
     name = "Standard\nDeviation",
-    labels = function(x) gsub("\\(|\\[|\\]", "", x)   
+    labels = function(x) gsub(" ", "", gsub(",", "–", gsub("\\(|\\[|\\]", "", x))) 
   ) +
   coord_equal() +
   guides(fill = guide_legend(reverse = TRUE)) +   
